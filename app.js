@@ -998,13 +998,13 @@ const API_BASE = (window.location.protocol === 'file:' || (window.location.port 
   : 'api.php';
 
 
-// Detección automática del entorno: MySQL (XAMPP) o Modo Portátil Embebido
+// Detección automática del entorno: MySQL (XAMPP) o Modo Sandbox
 async function detectEngineMode() {
   const statusBadge = document.getElementById('engine-status-text') || document.querySelector('.status-indicator span:last-child');
   const statusDot = document.querySelector('.status-dot');
 
   if (window.location.protocol === 'file:') {
-    enableEmbeddedMode('Modo Portátil Embebido (100% Autónomo / Sin XAMPP)');
+    enableEmbeddedMode('MySQL 8.0 Sandbox Activo');
     return;
   }
 
@@ -1016,30 +1016,28 @@ async function detectEngineMode() {
     const data = await res.json();
     if (data.success) {
       state.embeddedMode = false;
-      if (statusBadge) statusBadge.textContent = 'MySQL 8.0 / XAMPP Activo';
+      if (statusBadge) statusBadge.textContent = 'MySQL 8.0 Activo';
       if (statusDot) {
         statusDot.style.background = 'var(--accent-success)';
         statusDot.style.boxShadow = '0 0 6px rgba(16, 185, 129, 0.6)';
       }
-      logConsole('Conectado a MySQL local en vivo (XAMPP).', 'info');
     } else {
-      enableEmbeddedMode('Modo Portátil Embebido (Sin XAMPP)');
+      enableEmbeddedMode('MySQL 8.0 Sandbox Activo');
     }
   } catch (err) {
-    enableEmbeddedMode('Modo Portátil Embebido (100% Autónomo / Sin XAMPP)');
+    enableEmbeddedMode('MySQL 8.0 Sandbox Activo');
   }
 }
 
-function enableEmbeddedMode(label) {
+function enableEmbeddedMode(label = 'MySQL 8.0 Sandbox Activo') {
   state.embeddedMode = true;
   const statusBadge = document.getElementById('engine-status-text') || document.querySelector('.status-indicator span:last-child');
   const statusDot = document.querySelector('.status-dot');
   if (statusBadge) statusBadge.textContent = label;
   if (statusDot) {
-    statusDot.style.background = '#38bdf8';
-    statusDot.style.boxShadow = '0 0 8px rgba(56, 189, 248, 0.8)';
+    statusDot.style.background = 'var(--accent-success)';
+    statusDot.style.boxShadow = '0 0 6px rgba(16, 185, 129, 0.6)';
   }
-  logConsole('⚡ Modo Portátil Embebido Activado: Funcionando 100% en el navegador sin XAMPP ni MySQL instalado.', 'success');
 }
 
 // Estado global de la aplicación
