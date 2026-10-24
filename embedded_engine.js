@@ -374,6 +374,17 @@ const EmbeddedEngine = {
     if (match) {
       const funcName = match[1];
       const returnType = match[3];
+
+      // Verificar si las tablas consultadas en la función existen
+      const fromMatches = stmt.matchAll(/(?:FROM|JOIN)\s+`?(\w+)`?/gi);
+      for (const m of fromMatches) {
+        const tblRef = m[1].toLowerCase();
+        if (['select', 'as', 'where', 'left', 'right', 'inner'].includes(tblRef)) continue;
+        if (!this.db.tables[tblRef]) {
+          throw new Error(`Error Code: 1146. Table '${tblRef}' doesn't exist. No puedes crear la función '${funcName}' porque la tabla '${tblRef}' que intenta consultar no existe.`);
+        }
+      }
+
       this.db.routines[funcName] = {
         name: funcName,
         type: 'FUNCTION',
@@ -382,10 +393,21 @@ const EmbeddedEngine = {
     }
   },
 
-    parseCreateProcedure(stmt) {
+  parseCreateProcedure(stmt) {
     const match = stmt.match(/CREATE\s+PROCEDURE\s+`?(\w+)`?\s*\(([^)]*)\)/i);
     if (match) {
       const procName = match[1];
+
+      // Verificar tablas consultadas o modificadas dentro del procedimiento
+      const tableRefs = stmt.matchAll(/(?:FROM|JOIN|UPDATE|INSERT\s+INTO)\s+`?(\w+)`?/gi);
+      for (const m of tableRefs) {
+        const tblRef = m[1].toLowerCase();
+        if (['select', 'as', 'where', 'left', 'right', 'inner', 'set', 'values'].includes(tblRef)) continue;
+        if (['dual', 'cursor', 'continue', 'handler', 'sqlexception'].includes(tblRef)) continue;
+        if (!this.db.tables[tblRef]) {
+          throw new Error(`Error Code: 1146. Table '${tblRef}' doesn't exist. No puedes crear el procedimiento '${procName}' porque la tabla '${tblRef}' que utiliza no existe aún.`);
+        }
+      }
 
       // Si es sp_alta_reserva, verificar que la función de disponibilidad ya exista
       if (procName.toLowerCase() === 'sp_alta_reserva') {
@@ -526,6 +548,9 @@ const EmbeddedEngine = {
         };
 
       case 4:
+        if (!tables.includes('clientes') || !tables.includes('recursos')) {
+          return { passed: false, message: "Para crear y validar 'reservas', primero debes haber creado sus tablas vinculadas: 'clientes' (Paso 3) y 'recursos' (Paso 2)." };
+        }
         if (!tables.includes('reservas')) {
           return { passed: false, message: "Falta crear la tabla intermedia 'reservas'." };
         }
@@ -544,6 +569,9 @@ const EmbeddedEngine = {
         };
 
       case 5:
+        if (!tables.includes('reservas')) {
+          return { passed: false, message: "Para crear 'auditoria_reservas', primero debes haber creado la tabla 'reservas' (Paso 4)." };
+        }
         if (!tables.includes('auditoria_reservas')) {
           return { passed: false, message: "Falta crear la tabla 'auditoria_reservas'." };
         }
@@ -573,6 +601,9 @@ const EmbeddedEngine = {
         };
 
       case 7:
+        if (!tables.includes('reservas') || !tables.includes('clientes') || !tables.includes('recursos')) {
+          return { passed: false, message: "Para crear y consultar las vistas, primero deben existir las tablas maestras: 'reservas', 'clientes' y 'recursos'." };
+        }
         if (!views.includes('vw_detalle_reservas')) {
           return { passed: false, message: "Falta crear la vista 'vw_detalle_reservas' que une reservas con clientes y recursos." };
         }
@@ -585,6 +616,9 @@ const EmbeddedEngine = {
         };
 
       case 8:
+        if (!tables.includes('reservas')) {
+          return { passed: false, message: "La función 'fn_verificar_disponibilidad' requiere que la tabla 'reservas' ya esté creada (Paso 4)." };
+        }
         if (!routines['fn_verificar_disponibilidad'] || routines['fn_verificar_disponibilidad'].type !== 'FUNCTION') {
           return { passed: false, message: "Falta crear la función 'fn_verificar_disponibilidad(p_id_recurso, p_fecha)'." };
         }
@@ -594,6 +628,9 @@ const EmbeddedEngine = {
         };
 
       case 9:
+        if (!tables.includes('clientes')) {
+          return { passed: false, message: "Los procedimientos de cliente requieren que la tabla 'clientes' ya esté creada (Paso 3)." };
+        }
         if (!routines['sp_alta_cliente']) {
           return { passed: false, message: "Falta crear el procedimiento almacenado 'sp_alta_cliente'." };
         }
@@ -606,6 +643,12 @@ const EmbeddedEngine = {
         };
 
       case 10:
+        if (!tables.includes('reservas')) {
+          return { passed: false, message: "El procedimiento de reservas requiere que la tabla 'reservas' ya esté creada (Paso 4)." };
+        }
+        if (!routines['fn_verificar_disponibilidad']) {
+          return { passed: false, message: "El procedimiento 'sp_alta_reserva' requiere que primero hayas creado la función 'fn_verificar_disponibilidad' en el Paso 8." };
+        }
         if (!routines['sp_alta_reserva']) {
           return { passed: false, message: "Falta crear el procedimiento almacenado 'sp_alta_reserva'." };
         }
@@ -618,6 +661,9 @@ const EmbeddedEngine = {
         };
 
       case 11:
+        if (!tables.includes('reservas') || !tables.includes('auditoria_reservas')) {
+          return { passed: false, message: "El trigger requiere que existan tanto la tabla vigilada 'reservas' (Paso 4) como la tabla receptora 'auditoria_reservas' (Paso 5)." };
+        }
         if (!triggers['trg_auditoria_reservas']) {
           return { passed: false, message: "Falta crear el disparador (trigger) 'trg_auditoria_reservas' en la tabla reservas." };
         }
@@ -627,6 +673,9 @@ const EmbeddedEngine = {
         };
 
       case 12:
+        if (!tables.includes('reservas') || !tables.includes('recursos')) {
+          return { passed: false, message: "El procedimiento con cursor requiere que existan las tablas 'reservas' (Paso 4) y 'recursos' (Paso 2)." };
+        }
         if (!routines['sp_calcular_total_recaudado_cursor']) {
           return { passed: false, message: "Falta crear el procedimiento 'sp_calcular_total_recaudado_cursor' con el CURSOR de MySQL." };
         }
@@ -740,3 +789,7 @@ const EmbeddedEngine = {
     return isNaN(num) ? val : num;
   }
 };
+
+if (typeof module !== 'undefined') {
+  module.exports = EmbeddedEngine;
+}
