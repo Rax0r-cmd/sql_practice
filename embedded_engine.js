@@ -195,10 +195,17 @@ const EmbeddedEngine = {
       // 1. Detectar CONSTRAINT FOREIGN KEY
       const fkMatch = trimmed.match(/(?:CONSTRAINT\s+`?(\w+)`?\s+)?FOREIGN\s+KEY\s*\(`?(\w+)`?\)\s*REFERENCES\s+`?(\w+)`?\s*\(`?(\w+)`?\)/i);
       if (fkMatch) {
+        const refTable = fkMatch[3].toLowerCase();
+        
+        // REGLA DE INTEGRIDAD REFERENCIAL DE DDL (IGUAL A MYSQL):
+        if (!this.db.tables[refTable]) {
+          throw new Error(`Error Code: 1824. Failed to open the referenced table '${refTable}'. No puedes crear la tabla '${tableName}' con una clave foránea hacia '${refTable}' porque esa tabla aún no existe. Debes crear primero la tabla maestra '${refTable}' en el Paso 1.`);
+        }
+
         foreignKeys.push({
           CONSTRAINT_NAME: fkMatch[1] || `fk_${tableName}_${fkMatch[3]}`,
           COLUMN_NAME: fkMatch[2],
-          REFERENCED_TABLE_NAME: fkMatch[3].toLowerCase(),
+          REFERENCED_TABLE_NAME: refTable,
           REFERENCED_COLUMN_NAME: fkMatch[4]
         });
         continue;
@@ -426,6 +433,9 @@ const EmbeddedEngine = {
         };
 
       case 2:
+        if (!tables.includes('tipo_recursos')) {
+          return { passed: false, message: "Para validar el Paso 2, primero debes haber creado la tabla maestra 'tipo_recursos' en el Paso 1." };
+        }
         if (!tables.includes('recursos')) {
           return { passed: false, message: "Falta crear la tabla 'recursos'." };
         }
