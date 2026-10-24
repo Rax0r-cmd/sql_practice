@@ -263,7 +263,7 @@ const EmbeddedEngine = {
     };
   },
 
-  parseInsert(stmt) {
+    parseInsert(stmt) {
     const match = stmt.match(/INSERT\s+INTO\s+`?(\w+)`?\s*(?:\(([^)]+)\))?\s*VALUES\s*([\s\S]+)$/i);
     if (!match) return 0;
 
@@ -273,15 +273,7 @@ const EmbeddedEngine = {
 
     let targetTable = this.db.tables[tableName];
     if (!targetTable) {
-      // Crear tabla al vuelo si aún no existía
-      targetTable = {
-        name: tableName,
-        columns: [],
-        foreign_keys: [],
-        rows: [],
-        rows_count: 0
-      };
-      this.db.tables[tableName] = targetTable;
+      throw new Error(`Error Code: 1146. Table '${tableName}' doesn't exist. No puedes insertar datos en una tabla que aún no ha sido creada.`);
     }
 
     let colNames = [];
@@ -309,6 +301,23 @@ const EmbeddedEngine = {
         });
       }
 
+      // Validar claves foráneas activas
+      if (targetTable.foreign_keys && targetTable.foreign_keys.length > 0) {
+        for (const fk of targetTable.foreign_keys) {
+          const fkVal = rowObj[fk.COLUMN_NAME];
+          if (fkVal !== null && fkVal !== undefined) {
+            const parentTable = this.db.tables[fk.REFERENCED_TABLE_NAME];
+            if (!parentTable) {
+              throw new Error(`Error Code: 1452. Cannot add or update a child row: a foreign key constraint fails ('${fk.CONSTRAINT_NAME}'). La tabla padre '${fk.REFERENCED_TABLE_NAME}' no existe.`);
+            }
+            const existsInParent = parentTable.rows.some(pRow => String(pRow[fk.REFERENCED_COLUMN_NAME]) === String(fkVal));
+            if (!existsInParent) {
+              throw new Error(`Error Code: 1452. Cannot add or update a child row: a foreign key constraint fails ('${fk.CONSTRAINT_NAME}'). El valor '${fkVal}' en la columna '${fk.COLUMN_NAME}' no existe en la tabla padre '${fk.REFERENCED_TABLE_NAME}.${fk.REFERENCED_COLUMN_NAME}'.`);
+            }
+          }
+        }
+      }
+
       // Si tiene clave autoincremental y no fue provista, autogenerar
       const autoCol = targetTable.columns.find(c => c.Extra === 'auto_increment');
       if (autoCol && (!rowObj[autoCol.Field] || rowObj[autoCol.Field] === 'NULL')) {
@@ -323,12 +332,23 @@ const EmbeddedEngine = {
     return insertedCount;
   },
 
-  parseCreateView(stmt) {
+    parseCreateView(stmt) {
     const match = stmt.match(/CREATE\s+VIEW\s+`?(\w+)`?\s+AS\s+([\s\S]+)$/i);
     if (!match) return;
 
     const viewName = match[1];
     const query = match[2];
+
+    // Verificar si las tablas consultadas en la vista existen
+    const fromMatches = query.matchAll(/(?:FROM|JOIN)\s+`?(\w+)`?/gi);
+    for (const m of fromMatches) {
+      const tblRef = m[1].toLowerCase();
+      // Omitir palabras reservadas o subconsultas
+      if (['select', 'as', 'where', 'left', 'right', 'inner'].includes(tblRef)) continue;
+      if (!this.db.tables[tblRef]) {
+        throw new Error(`Error Code: 1146. Table '${tblRef}' doesn't exist. No puedes crear la vista '${viewName}' porque la tabla '${tblRef}' que intenta consultar no existe.`);
+      }
+    }
 
     // Extraer nombres aproximados de columnas seleccionadas
     const selectMatch = query.match(/SELECT\s+([\s\S]+?)\s+FROM/i);
@@ -362,10 +382,25 @@ const EmbeddedEngine = {
     }
   },
 
-  parseCreateProcedure(stmt) {
+    parseCreateProcedure(stmt) {
     const match = stmt.match(/CREATE\s+PROCEDURE\s+`?(\w+)`?\s*\(([^)]*)\)/i);
     if (match) {
       const procName = match[1];
+
+      // Si es sp_alta_reserva, verificar que la función de disponibilidad ya exista
+      if (procName.toLowerCase() === 'sp_alta_reserva') {
+        if (!this.db.routines['fn_verificar_disponibilidad']) {
+          throw new Error(`Error Code: 1305. FUNCTION fn_verificar_disponibilidad does not exist. El procedimiento '${procName}' requiere que primero crees la función de disponibilidad en el Paso 8.`);
+        }
+      }
+
+      // Si es sp_calcular_total_recaudado_cursor, verificar que la tabla reservas exista
+      if (procName.toLowerCase().includes('cursor')) {
+        if (!this.db.tables['reservas']) {
+          throw new Error(`Error Code: 1146. Table 'reservas' doesn't exist. El cursor no puede consultar una tabla inexistente. Debes crear 'reservas' en el Paso 4.`);
+        }
+      }
+
       this.db.routines[procName] = {
         name: procName,
         type: 'PROCEDURE',
@@ -374,15 +409,30 @@ const EmbeddedEngine = {
     }
   },
 
-  parseCreateTrigger(stmt) {
+    parseCreateTrigger(stmt) {
     const match = stmt.match(/CREATE\s+TRIGGER\s+`?(\w+)`?\s+(AFTER|BEFORE)\s+(INSERT|UPDATE|DELETE)\s+ON\s+`?(\w+)`?/i);
     if (match) {
       const trgName = match[1];
+      const targetTable = match[4].toLowerCase();
+
+      if (!this.db.tables[targetTable]) {
+        throw new Error(`Error Code: 1146. Table '${targetTable}' doesn't exist. No puedes crear el trigger '${trgName}' porque la tabla '${targetTable}' no existe.`);
+      }
+
+      // Si el trigger inserta en una tabla de auditoría, validar que exista
+      const insertMatch = stmt.match(/INSERT\s+INTO\s+`?(\w+)`?/i);
+      if (insertMatch) {
+        const audTable = insertMatch[1].toLowerCase();
+        if (!this.db.tables[audTable]) {
+          throw new Error(`Error Code: 1146. Table '${audTable}' doesn't exist. El trigger '${trgName}' intenta registrar en '${audTable}', pero esa tabla aún no fue creada (Paso 5).`);
+        }
+      }
+
       this.db.triggers[trgName] = {
         name: trgName,
         timing: match[2].toUpperCase(),
         event: match[3].toUpperCase(),
-        table: match[4].toLowerCase()
+        table: targetTable
       };
     }
   },
