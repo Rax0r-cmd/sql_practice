@@ -1446,6 +1446,12 @@ function renderTableData(tbl) {
   const thead = document.createElement('thead');
   const trHead = document.createElement('tr');
 
+  // Columna de numeración #
+  const thNum = document.createElement('th');
+  thNum.className = 'th-row-num';
+  thNum.textContent = '#';
+  trHead.appendChild(thNum);
+
   tbl.columns.forEach(col => {
     const th = document.createElement('th');
     let badges = '';
@@ -1462,21 +1468,38 @@ function renderTableData(tbl) {
   if (tbl.rows.length === 0) {
     const tr = document.createElement('tr');
     const td = document.createElement('td');
-    td.colSpan = tbl.columns.length;
+    td.colSpan = tbl.columns.length + 1;
     td.style.textAlign = 'center';
-    td.style.padding = '24px';
-    td.style.color = '#64748b';
-    td.textContent = 'Tabla vacía (0 registros). En el Paso 6 cargaremos los datos de prueba.';
+    td.style.padding = '36px 16px';
+    td.innerHTML = `
+      <div style="font-size:13px; font-weight:600; color:#94a3b8; margin-bottom:6px;">
+        📋 Tabla creada pero sin registros (0 filas)
+      </div>
+      <div style="font-size:11px; color:#64748b; line-height: 1.6;">
+        La estructura de la tabla está definida con todas sus columnas.<br>
+        En el <strong>Paso 6 (Carga de Datos de Prueba)</strong> realizaremos los <code>INSERT INTO</code> para poblarla.
+      </div>
+    `;
     tr.appendChild(td);
     tbody.appendChild(tr);
   } else {
-    tbl.rows.forEach(row => {
+    tbl.rows.forEach((row, rIdx) => {
       const tr = document.createElement('tr');
+
+      // Numeración de fila
+      const tdNum = document.createElement('td');
+      tdNum.className = 'td-row-num';
+      tdNum.textContent = rIdx + 1;
+      tr.appendChild(tdNum);
+
       tbl.columns.forEach(col => {
         const td = document.createElement('td');
         const val = row[col.Field];
-        td.textContent = (val === null) ? 'NULL' : val;
-        if (val === null) td.style.color = '#64748b';
+        if (val === null || val === undefined) {
+          td.innerHTML = '<span style="color:#64748b; font-style:italic;">NULL</span>';
+        } else {
+          td.textContent = val;
+        }
         tr.appendChild(td);
       });
       tbody.appendChild(tr);
@@ -1509,27 +1532,39 @@ function renderQueryResults(queries) {
   container.innerHTML = '';
 
   queries.forEach((q, idx) => {
-    const wrap = document.createElement('div');
-    wrap.style.marginBottom = '20px';
+    const card = document.createElement('div');
+    card.className = 'query-result-card';
 
     const header = document.createElement('div');
-    header.style.padding = '8px 12px';
-    header.style.background = '#0f172a';
-    header.style.borderBottom = '1px solid #1e293b';
-    header.style.fontFamily = 'var(--font-mono)';
-    header.style.fontSize = '11px';
-    header.style.color = '#94a3b8';
-    header.textContent = `Resultado Consulta #${idx + 1} (${q.count} filas)`;
-    wrap.appendChild(header);
+    header.className = 'query-result-header';
+    header.innerHTML = `
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span style="color:#38bdf8; font-weight:600;">📊 Resultado Consulta #${idx + 1}</span>
+        <span style="font-size:10px; padding:2px 6px; border-radius:4px; background:${q.count > 0 ? 'rgba(16, 185, 129, 0.15)' : 'rgba(148, 163, 184, 0.15)'}; color:${q.count > 0 ? '#34d399' : '#94a3b8'}; font-weight: 500;">
+          ${q.count} ${q.count === 1 ? 'fila' : 'filas'}
+        </span>
+      </div>
+      <span style="font-size:10px; color:#64748b;">${q.columns.length} columnas devueltas</span>
+    `;
+    card.appendChild(header);
 
     const tblWrap = document.createElement('div');
     tblWrap.className = 'data-grid-container';
+    tblWrap.style.border = 'none';
 
     const table = document.createElement('table');
     table.className = 'data-table';
 
+    // Cabecera de la tabla
     const thead = document.createElement('thead');
     const trHead = document.createElement('tr');
+
+    // Columna de numeración #
+    const thNum = document.createElement('th');
+    thNum.className = 'th-row-num';
+    thNum.textContent = '#';
+    trHead.appendChild(thNum);
+
     q.columns.forEach(c => {
       const th = document.createElement('th');
       th.textContent = c;
@@ -1538,21 +1573,54 @@ function renderQueryResults(queries) {
     thead.appendChild(trHead);
     table.appendChild(thead);
 
+    // Cuerpo de la tabla
     const tbody = document.createElement('tbody');
-    q.rows.forEach(r => {
+    if (q.rows.length === 0) {
       const tr = document.createElement('tr');
-      q.columns.forEach(c => {
-        const td = document.createElement('td');
-        td.textContent = r[c] === null ? 'NULL' : r[c];
-        tr.appendChild(td);
-      });
+      const td = document.createElement('td');
+      td.colSpan = q.columns.length + 1;
+      td.style.textAlign = 'center';
+      td.style.padding = '36px 16px';
+      td.innerHTML = `
+        <div style="font-size:13px; font-weight:600; color:#94a3b8; margin-bottom:6px;">
+          📋 Tabla creada pero sin registros (0 filas)
+        </div>
+        <div style="font-size:11px; color:#64748b; line-height: 1.6;">
+          La estructura de columnas de la tabla existe correctamente.<br>
+          Para ver filas con datos en esta consulta, debes insertar registros usando <code>INSERT INTO ...</code><br>
+          o completar el <strong>Paso 6 (Carga de Datos de Prueba)</strong>.
+        </div>
+      `;
+      tr.appendChild(td);
       tbody.appendChild(tr);
-    });
-    table.appendChild(tbody);
+    } else {
+      q.rows.forEach((r, rIdx) => {
+        const tr = document.createElement('tr');
 
+        // Número de fila (1, 2, 3...)
+        const tdNum = document.createElement('td');
+        tdNum.className = 'td-row-num';
+        tdNum.textContent = rIdx + 1;
+        tr.appendChild(tdNum);
+
+        q.columns.forEach(c => {
+          const td = document.createElement('td');
+          const val = r[c];
+          if (val === null || val === undefined) {
+            td.innerHTML = '<span style="color:#64748b; font-style:italic;">NULL</span>';
+          } else {
+            td.textContent = val;
+          }
+          tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+      });
+    }
+
+    table.appendChild(tbody);
     tblWrap.appendChild(table);
-    wrap.appendChild(tblWrap);
-    container.appendChild(wrap);
+    card.appendChild(tblWrap);
+    container.appendChild(card);
   });
 }
 
