@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SQL Studio · Simulador de Aprendizaje Interactivo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=7">
+</head>
+<body>
+
+  <!-- Cabecera de la aplicación -->
+  <header class="app-header">
+    <div class="header-brand">
+      <span class="brand-badge">SQL LAB</span>
+      <h1 class="brand-title">SQL Studio <span>· Simulador Interactivo TP Final</span></h1>
+    </div>
+
+    <div class="header-status">
+      <div class="status-indicator">
+        <span class="status-dot"></span>
+        <span id="engine-status-text">Detectando entorno...</span>
+      </div>
+      <button id="btn-reset-sandbox" class="btn-header" title="Reiniciar base de datos de práctica">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path>
+          <path d="M21 3v5h-5"></path>
+          <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path>
+          <path d="M3 21v-5h5"></path>
+        </svg>
+        Reiniciar Sandbox
+      </button>
+    </div>
+  </header>
+
+  <!-- Contenedor Principal en Pantalla Dividida -->
+  <main class="split-container">
+    
+    <!-- PANEL IZQUIERDO: Misión, Editor y Consola -->
+    <section class="panel-left">
+      
+      <!-- Navegador de Misión -->
+      <div class="mission-header">
+        <div class="mission-top-bar">
+          <div class="level-selector-wrap">
+            <span class="catedra-tag">Cátedra Algoritmos II · Lic. Adrián Aroca</span>
+            <label for="level-select" style="font-size: 11px; color: var(--text-muted); font-weight: 500; margin-left: 8px;">NIVEL:</label>
+            <select id="level-select" class="level-select"></select>
+          </div>
+          <span id="mission-progress" class="progress-info">Misión 1 de 10</span>
+        </div>
+
+        <h2 id="mission-title" class="mission-title">1. Tablas Maestras Independientes</h2>
+        
+        <!-- 0. PEDIDO DE LA CÁTEDRA -->
+        <div class="exercise-task-box">
+          <div class="exercise-task-header">
+            <span style="font-size: 14px;">🎯</span>
+            <span>PEDIDO DE LA CÁTEDRA (CONSIGNA):</span>
+          </div>
+          <p id="mission-task-goal" class="exercise-task-goal"></p>
+        </div>
+
+        <!-- 1. CÓMO LO PENSAMOS Y POR QUÉ -->
+        <div class="simple-explain-box">
+          <div class="simple-explain-header">
+            <span style="font-size: 14px;">💡</span>
+            <span>¿CÓMO LO PENSAMOS Y POR QUÉ? (DE LA CONSIGNA A LA SOLUCIÓN):</span>
+          </div>
+          <p id="mission-simple-desc" class="simple-explain-text"></p>
+        </div>
+
+        <!-- Desplegable Oculto: VER SOLUCIONES -->
+        <details id="details-solution" class="solutions-accordion">
+          <summary class="solutions-summary">
+            <span style="font-size: 14px;">👁️</span>
+            <span>VER SOLUCIONES</span>
+          </summary>
+          <div class="solutions-content">
+            
+            <!-- 2. Desglose Paso a Paso: ¿Por qué cada palabra del SQL? -->
+            <div class="breakdown-card">
+              <div class="breakdown-header">
+                <span>🔍 PASO A PASO: ¿POR QUÉ ESCRIBIMOS CADA PALABRA EN SQL?</span>
+              </div>
+              <div id="mission-breakdown-list" class="breakdown-list"></div>
+            </div>
+
+            <!-- 3. Qué debes escribir exactamente -->
+            <div class="exact-code-card">
+              <div class="exact-code-header">
+                <span>💻 CÓDIGO EXACTO RESULTANTE (DB_TPFINAL.SQL):</span>
+                <button id="btn-copy-exact-code" class="btn-copy-code" title="Pegar directamente en el editor">📋 Pegar en Editor</button>
+              </div>
+              <pre id="mission-exact-code" class="exact-code-pre"></pre>
+            </div>
+
+            <!-- 4. Justificación formal de Cátedra (Colapsable) -->
+            <details class="catedra-details">
+              <summary class="catedra-summary">📜 Ver justificación formal de la cátedra y consigna HTML</summary>
+              <div id="mission-rationale" class="rationale-text" style="margin-top: 6px;"></div>
+            </details>
+
+          </div>
+        </details>
+      </div>
+
+      <!-- Barra de acciones del Editor -->
+      <div class="action-bar">
+        <div class="action-bar-left">
+          <button id="btn-execute" class="btn-primary" title="Ejecutar código SQL (Ctrl + Enter)">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+              <polygon points="5 3 19 12 5 21 5 3"></polygon>
+            </svg>
+            Ejecutar (Ctrl+Enter)
+          </button>
+          
+          <button id="btn-validate" class="btn-validate" title="Validar si cumples el requerimiento del nivel">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+            Validar Paso
+          </button>
+        </div>
+
+        <button id="btn-hint" class="btn-secondary" title="Ver pistas pedagógicas y solución">
+          💡 Ver Pistas / Solución
+        </button>
+      </div>
+
+      <!-- Área de Edición de Código -->
+      <div class="editor-wrapper">
+        <div class="editor-toolbar">
+          <div class="editor-title">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="16 18 22 12 16 6"></polyline>
+              <polyline points="8 6 2 12 8 18"></polyline>
+            </svg>
+            <span id="active-editor-filename">DB_TPFinal.sql</span>
+          </div>
+          <div class="editor-actions">
+            <button id="btn-insert-template" class="btn-editor-action" title="Insertar esqueleto de código para completar">⚡ Insertar Guía</button>
+            <button id="btn-clear-editor" class="btn-editor-action" title="Limpiar editor">🗑 Vaciar</button>
+            <span style="font-size:10px; color:#64748b; font-family:var(--font-mono); margin-left: 6px;">MySQL 8.0</span>
+          </div>
+        </div>
+
+        <div class="code-editor-container">
+          <div id="line-numbers" class="line-numbers">1</div>
+          <div class="editor-overlay-wrapper">
+            <pre id="highlighting-pre" class="highlighting-pre" aria-hidden="true"><code id="highlighting-content"></code></pre>
+            <textarea id="sql-editor" class="sql-textarea" spellcheck="false" placeholder="Escribe tu código SQL aquí..."></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- Consola de Diagnóstico y Feedback pedagógico -->
+      <div class="console-panel" id="console-panel">
+        <div class="console-header">
+          <span>DIAGNÓSTICO Y CORRECCIÓN AUTOMÁTICA</span>
+          <div style="display: flex; gap: 6px;">
+            <button id="btn-toggle-console" class="btn-editor-action" style="padding: 1px 6px;">↕ Expandir</button>
+            <button id="btn-clear-console" class="btn-editor-action" style="padding: 1px 6px;">Limpiar</button>
+          </div>
+        </div>
+        <div id="console-body" class="console-body">
+          <div class="console-msg info">
+            <span>Bienvenido a SQL Studio. Selecciona un paso, escribe tu código SQL y presiona "Ejecutar" o "Validar Paso".</span>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- PANEL DERECHO: Visualización en tiempo real de Tablas y Datos -->
+    <section class="panel-right">
+      
+      <!-- Pestañas Superiores -->
+      <nav class="tabs-header">
+        <button class="tab-btn active" data-tab="tables">
+          <span>Tablas & Datos en Vivo</span>
+          <span id="count-tables" class="tab-count">0</span>
+        </button>
+
+        <button class="tab-btn" data-tab="query">
+          <span>Resultado de Consulta</span>
+        </button>
+
+        <button class="tab-btn" data-tab="objects">
+          <span>Vistas & Rutinas</span>
+          <span id="count-objects" class="tab-count">0</span>
+        </button>
+
+        <button class="tab-btn" data-tab="erd">
+          <span>Diagrama Relacional</span>
+        </button>
+      </nav>
+
+      <!-- Pestaña 1: Tablas & Datos en Tiempo Real -->
+      <div id="tab-tables" class="tab-content active">
+        <div class="schema-split">
+          
+          <!-- Lista lateral de tablas -->
+          <aside class="schema-sidebar">
+            <div class="sidebar-title">Tablas creadas</div>
+            <ul id="table-list" class="table-list"></ul>
+          </aside>
+
+          <!-- Grilla de datos en vivo de la tabla seleccionada -->
+          <div class="table-viewer-main">
+            <div class="table-viewer-header">
+              <span id="active-table-name" class="table-viewer-title">Selecciona una tabla</span>
+              <span id="active-table-info" style="font-size: 11px; color: var(--text-muted); font-family: var(--font-mono);">--</span>
+            </div>
+            <div id="table-grid-container" class="data-grid-container"></div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Pestaña 2: Resultados de Consultas SELECT -->
+      <div id="tab-query" class="tab-content" style="padding: 12px;">
+        <div class="empty-state">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <span>Ejecuta una consulta SELECT para visualizar los datos aquí en tiempo real.</span>
+        </div>
+      </div>
+
+      <!-- Pestaña 3: Objetos Almacenados -->
+      <div id="tab-objects" class="tab-content"></div>
+
+      <!-- Pestaña 4: Diagrama Entidad-Relación (DER) -->
+      <div id="tab-erd" class="tab-content" style="padding: 0;">
+        <div class="erd-toolbar">
+          <div class="erd-toolbar-left">
+            <span class="erd-title">DIAGRAMA ENTIDAD-RELACIÓN (DER) EN VIVO</span>
+            <span id="erd-relations-count" class="erd-badge">0 relaciones</span>
+          </div>
+          <div class="erd-toolbar-right">
+            <span class="erd-legend">
+              <span><span class="badge-pk">PK</span> Primaria</span>
+              <span><span class="badge-fk">FK</span> Foránea</span>
+              <span style="color: #38bdf8; font-weight: 600;">━━ Relación</span>
+            </span>
+            <button id="btn-erd-auto-layout" class="btn-editor-action" style="padding: 3px 8px;" title="Reordenar tablas automáticamente">🔄 Auto-Organizar</button>
+          </div>
+        </div>
+        <div id="erd-canvas" class="erd-canvas">
+          <svg id="erd-svg-layer" class="erd-svg-layer">
+            <defs>
+              <marker id="erd-arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 1 L 8 5 L 0 9 z" fill="#38bdf8"></path>
+              </marker>
+              <marker id="erd-dot" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6">
+                <circle cx="5" cy="5" r="3" fill="#10b981"></circle>
+              </marker>
+            </defs>
+          </svg>
+          <div id="erd-nodes-layer" class="erd-nodes-layer"></div>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- Modal de Pistas y Solución -->
+  <div id="modal-overlay" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <span id="modal-title" class="modal-title">Pistas & Guía</span>
+      </div>
+      <div class="modal-body">
+        <p id="modal-hint-text" style="margin-bottom: 12px;"></p>
+        <div style="font-size: 11px; font-weight: 600; color: #94a3b8; text-transform: uppercase;">Estructura sugerida:</div>
+        <pre id="modal-code-snippet" class="code-snippet"></pre>
+      </div>
+      <div class="modal-footer">
+        <button id="btn-copy-solution" class="btn-primary" style="background:#0284c7;">Copiar Solución al Editor</button>
+        <button id="btn-close-modal" class="btn-secondary">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="embedded_engine.js?v=1"></script>
+  <script src="app.js?v=8"></script>
+</body>
+</html>
